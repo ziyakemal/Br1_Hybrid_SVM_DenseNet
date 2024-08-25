@@ -6,10 +6,14 @@ import matplotlib.pyplot as plt
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 # İşlenecek tek bir resmin yolunu belirtin
-image_path = "dataSet/YES/TCGA_CS_4941_19960909_14.tif"
+image_path = "dataSet\YES\TCGA_CS_4944_20010208_7.tif"
 
-# Çıktı klasörünü projenin ana dizini olarak ayarlayın
-output_folder = os.getcwd()  # Projenin ana dizinini çıktı klasörü olarak ayarlayın
+# "figures" klasörünü çıktı klasörü olarak ayarlayın
+output_folder = os.path.join(os.getcwd(), "figures")
+
+# "figures" klasörünü oluşturun (eğer yoksa)
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
 
 # Görüntüyü yükleyin
 image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
