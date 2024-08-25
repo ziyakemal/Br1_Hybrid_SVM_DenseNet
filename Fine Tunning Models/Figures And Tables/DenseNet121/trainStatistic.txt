@@ -1,0 +1,20 @@
+Eğitim DataFrame:
+                               image_data label
+0  dataSet_Final/Train\No\aug_0_1014.jpeg    No
+1  dataSet_Final/Train\No\aug_0_1019.jpeg    No
+2  dataSet_Final/Train\No\aug_0_1024.jpeg    No
+3   dataSet_Final/Train\No\aug_0_103.jpeg    No
+4  dataSet_Final/Train\No\aug_0_1034.jpeg    No
+
+Eğitim seti boyutları--> 
+(3678, 2)
+
+Eksik veri gözlemleri--> 
+image_data    0
+label         0
+
+Kanser Türü Sayıları--> 
+label
+Yes    1854
+No     1824
+

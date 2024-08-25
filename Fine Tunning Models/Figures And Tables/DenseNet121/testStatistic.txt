@@ -1,0 +1,20 @@
+Test DataFrame:
+                              image_data label
+0  dataSet_Final/Test\No\aug_0_1036.jpeg    No
+1  dataSet_Final/Test\No\aug_0_1246.jpeg    No
+2  dataSet_Final/Test\No\aug_0_1253.jpeg    No
+3   dataSet_Final/Test\No\aug_0_146.jpeg    No
+4  dataSet_Final/Test\No\aug_0_1501.jpeg    No
+
+Test seti boyutları--> 
+(474, 2)
+
+Eksik veri gözlemleri--> 
+image_data    0
+label         0
+
+Kanser Türü Sayıları--> 
+label
+Yes    239
+No     235
+

@@ -1,0 +1,20 @@
+Validasyon DataFrame:
+                                    image_data label
+0  dataSet_Final/Validation\No\aug_0_1086.jpeg    No
+1  dataSet_Final/Validation\No\aug_0_1089.jpeg    No
+2  dataSet_Final/Validation\No\aug_0_1185.jpeg    No
+3  dataSet_Final/Validation\No\aug_0_1237.jpeg    No
+4  dataSet_Final/Validation\No\aug_0_1273.jpeg    No
+
+Validasyon seti boyutları--> 
+(1104, 2)
+
+Eksik veri gözlemleri--> 
+image_data    0
+label         0
+
+Kanser Türü Sayıları--> 
+label
+Yes    557
+No     547
+
