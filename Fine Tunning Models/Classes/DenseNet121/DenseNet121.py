@@ -153,7 +153,7 @@ save_statistics_to_file(test_df, "Test", output_path)
 
 # & _________________________ Görüntülerin yüklenmesi ve DataFrame'den NumPy dizilerine dönüştürülmesi _______________________________
 # * 6-) ------------------------------------------------------------------------------------------------------------------------------
-def load_images_from_dataframe(df, target_size=(128, 128)):
+def load_images_from_dataframe(df, target_size=(224, 224)):
     images = []
     labels = []
     for index, row in df.iterrows():
@@ -197,14 +197,15 @@ num_classes = len(label_mapping)
 
 
 # DenseNet Modelinin Oluşturulması
-def create_densenet169_model(input_shape, num_classes):
-    base_model = DenseNet169(
+def create_densenet121_model(input_shape, num_classes):
+    base_model = DenseNet121(
         weights="imagenet", include_top=False, input_shape=input_shape
     )
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     x = Dense(1024, activation="relu")(x)
+    x = Dropout(0.5)(x)  # overfittingin önlenmesi için
     predictions = Dense(num_classes, activation="softmax")(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)
@@ -216,8 +217,8 @@ def create_densenet169_model(input_shape, num_classes):
 
 
 # Modelin oluşturulması
-image_shape = (128, 128, 3)
-model = create_densenet169_model(image_shape, num_classes)
+image_shape = (224, 224, 3)  # DenseNet121 için gerekli boyut
+model = create_densenet121_model(image_shape, num_classes)
 
 # Modelin derlenmesi
 model.compile(
