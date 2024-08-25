@@ -1,9 +1,13 @@
+import numpy as np  # History dosyasını yüklemek için
+import matplotlib.pyplot as plt  # Accuracy, Loss ve ROC grafikleri oluşturmak için
+from sklearn.metrics import roc_curve, auc  # ROC eğrisi ve AUC hesaplamaları için
+import os  # Dosya yollarını oluşturmak ve dosyaları kaydetmek için
+
 #
 # * 1-) --------------------------------------------------------------------------------------------------------
 # Kütüphanelerimizi aşağıdaki gibi import edelim.
 # Data Manipulation
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
-import numpy as np
 import pandas as pd
 
 # Data preprocessing
@@ -15,7 +19,6 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.utils import shuffle
 
 # For Data Visualization
-import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Data Evaluation
@@ -42,19 +45,14 @@ from keras.utils import to_categorical
 import cv2
 
 # from tqdm import tqdm
-import os
 import random
 import pickle
 from contextlib import redirect_stdout
 
 # & ____________________________________ Tüm çıktılar aşağıdaki path'e kaydedilecek  ________________________________________
 
-# Output directory belirleme
-output_directory = "Fine Tunning Models/Models And History/DenseNet121"
-
-# Eğer output directory yoksa oluştur
-if not os.path.exists(output_directory):
-    os.makedirs(output_directory)
+history_file_path = "Fine Tunning Models/Models And History/DenseNet121/history_DenseNet121.npy"
+output_directory = "Fine Tunning Models/Figures And Tables/DenseNet121"
 
 # & ____________________________________ DataFrame Oluşturma Fonksiyonu ________________________________________
 # * 2-) --------------------------------------------------------------------------------------------------------
@@ -110,45 +108,6 @@ def print_dataset_statistics(df, name):
 print_dataset_statistics(train_df, "Eğitim")
 print_dataset_statistics(valid_df, "Eğitim")
 print_dataset_statistics(valid_df, "Eğitim")
-
-# * 5-) --------------------------------------------------------------------------------------------------------
-# Dataset istatistiklerinin txt doyyası olarak kayıt edilmesi.
-
-
-def save_statistics_to_file(df, name, save_path):
-    # Dosya yolunu oluşturmak için klasör yolunu al
-    folder_path = os.path.dirname(save_path)
-
-    # Klasör yoksa oluştur
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
-    # Dosyayı oluştur ve betimsel istatistikleri yaz
-    with open(save_path, "w", encoding="utf-8") as f:
-        f.write(f"{name} DataFrame:\n")
-        f.write(df.head().to_string())
-        f.write("\n\n")
-        f.write(f"{name} seti boyutları--> \n{df.shape}\n\n")
-        f.write(f"Eksik veri gözlemleri--> \n{df.isnull().sum().to_string()}\n\n")
-        f.write(
-            f"Kanser Türü Sayıları--> \n{df['label'].value_counts().to_string()}\n\n"
-        )
-
-
-# Örnek kullanımı:
-output_path = "Fine Tunning Models/Figures And Tables/DenseNet121/validationStatistic.txt"  # Bu yola istediğiniz klasör yolunu yazın
-save_statistics_to_file(valid_df, "Validasyon", output_path)
-
-output_path = "Fine Tunning Models/Figures And Tables/DenseNet121/trainStatistic.txt"
-save_statistics_to_file(train_df, "Eğitim", output_path)
-
-output_path = "Fine Tunning Models/Figures And Tables/DenseNet121/testStatistic.txt"
-save_statistics_to_file(test_df, "Test", output_path)
-
-
-# ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# Buradan sonra yer alan yapıda  ImageDataGenerator kullanımı tamamen kaldırılmıştır. Bunun yerine, veriler doğrudan DataFrame'den yüklenip,
-# NumPy dizilerine dönüştürülmüş ve bu şekilde modele verilmiştir. Bu yöntemle, augmentation işlemi olmadan, veriler DenseNet modelinde kullanılacaktır.
 
 
 # & _________________________ Görüntülerin yüklenmesi ve DataFrame'den NumPy dizilerine dönüştürülmesi _______________________________
@@ -227,65 +186,66 @@ model.compile(
     metrics=["accuracy"],
 )
 
-# & ______________________________________ Model Özetini Kaydetme ______________________________________________
-# * 10-) --------------------------------------------------------------------------------------------------------
+# ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+# History dosyasının yüklenmesi
+loaded_history = np.load(history_file_path, allow_pickle=True).item()
 
-summary_file_path = os.path.join(output_directory, "model_summary.txt")
-with open(summary_file_path, "w") as f:
-    with redirect_stdout(f):
-        model.summary()
-print(f"Model summary saved to --> {summary_file_path}")
+# Accuracy grafiği
+plt.figure(figsize=(10, 6))
+plt.plot(loaded_history["accuracy"], label="Training Accuracy")
+plt.plot(loaded_history["val_accuracy"], label="Validation Accuracy")
+plt.title("Model Accuracy")
+plt.ylabel("Accuracy")
+plt.xlabel("Epoch")
+plt.legend(loc="upper left")
+accuracy_plot_path = os.path.join(output_directory, "accuracy_plot.png")
+plt.savefig(accuracy_plot_path)
+plt.show()
 
-# & _________________________________ MODELİ EĞİTME & CALLBACK _________________________________________
-# * 11-) ------------------------------------------------------------------------------------------------
+# Loss grafiği
+plt.figure(figsize=(10, 6))
+plt.plot(loaded_history["loss"], label="Training Loss")
+plt.plot(loaded_history["val_loss"], label="Validation Loss")
+plt.title("Model Loss")
+plt.ylabel("Loss")
+plt.xlabel("Epoch")
+plt.legend(loc="upper left")
+loss_plot_path = os.path.join(output_directory, "loss_plot.png")
+plt.savefig(loss_plot_path)
+plt.show()
 
-ckp_interval = 5 * int(np.ceil(train_df.shape[0] / 64))
-ckp_path = os.path.join(
-    output_directory, r"epocch_{epoch:02d}_val_acc_{val_accuracy:.2f}.hdf5"
-)
+# ROC grafiği için gerekli hesaplamalar ve görselleştirme
+from sklearn.metrics import roc_curve, auc
 
-checkpoint = keras.callbacks.ModelCheckpoint(
-    filepath=ckp_path,
-    save_weights_only=True,
-    monitor="val_loss",
-    verbose=1,
-    save_best_only=True,
-)
+# Test seti için tahminlerin alınması
+y_pred = model.predict(test_images)
 
-callbacks = [
-    EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True),
-    ReduceLROnPlateau(monitor="val_loss", factor=0.2, patience=5, min_lr=1e-6),
-    checkpoint,
-]
+# ROC curve için gerekli verilerin hesaplanması
+fpr = {}
+tpr = {}
+roc_auc = {}
 
-history = model.fit(
-    train_images,
-    train_labels,
-    validation_data=(valid_images, valid_labels),
-    epochs=2,
-    batch_size=64,
-    callbacks=callbacks,
-)
+for i in range(num_classes):
+    fpr[i], tpr[i], _ = roc_curve(test_labels[:, i], y_pred[:, i])
+    roc_auc[i] = auc(fpr[i], tpr[i])
 
-# & ___________________________ History Dosyasının Kayıt Edilmesi ______________________________________
-# * 12-) ------------------------------------------------------------------------------------------------
+# ROC grafiğinin çizilmesi
+plt.figure(figsize=(10, 6))
+for i in range(num_classes):
+    plt.plot(fpr[i], tpr[i], label=f"ROC curve of class {i} (area = {roc_auc[i]:.2f})")
 
-# History dosyasının kaydedilmesi
-history_file_path = os.path.join(output_directory, "history_DenseNet121.npy")
-with open(history_file_path, "wb") as f:
-    np.save(f, history.history)
+plt.plot([0, 1], [0, 1], "k--")
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.title("Receiver Operating Characteristic")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.legend(loc="lower right")
+roc_plot_path = os.path.join(output_directory, "roc_plot.png")
+plt.savefig(roc_plot_path)
+plt.show()
 
-print(f"History saved to --> {history_file_path}")
-
-# & _________________________ Eğitim Bitiminde Modelin Kayıt Edilmesi __________________________________
-# * 13-) ------------------------------------------------------------------------------------------------
-
-# Modelin kaydedilmesi
-model_save_path = os.path.join(output_directory, "DenseNet121_classifier.keras")
-model.save(model_save_path)
-print(f"Model saved to --> {model_save_path}")
-
-# Modelin test edilmesi
-test_loss, test_acc = model.evaluate(test_images, test_labels)
-print(f"Test Accuracy: {test_acc}")
+print(f"Accuracy plot saved to --> {accuracy_plot_path}")
+print(f"Loss plot saved to --> {loss_plot_path}")
+print(f"ROC plot saved to --> {roc_plot_path}")
