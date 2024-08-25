@@ -153,39 +153,11 @@ valid_labels = to_categorical(valid_labels, num_classes=len(label_mapping))
 
 num_classes = len(label_mapping)
 
-# & _________________________________________ Model Development ________________________________________________
+# & _________________________________________ Model Loading ________________________________________________
 # * 9-) --------------------------------------------------------------------------------------------------------
 
-
-# DenseNet Modelinin Oluşturulması
-def create_densenet121_model(input_shape, num_classes):
-    base_model = DenseNet121(
-        weights="imagenet", include_top=False, input_shape=input_shape
-    )
-
-    x = base_model.output
-    x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation="relu")(x)
-    x = Dropout(0.5)(x)  # overfittingin önlenmesi için
-    predictions = Dense(num_classes, activation="softmax")(x)
-
-    model = Model(inputs=base_model.input, outputs=predictions)
-
-    for layer in base_model.layers:
-        layer.trainable = False
-
-    return model
-
-
-# Modelin oluşturulması
-image_shape = (224, 224, 3)  # DenseNet121 için gerekli boyut
-model = create_densenet121_model(image_shape, num_classes)
-
-# Modelin derlenmesi
-model.compile(
-    optimizer=Adam(learning_rate=0.001),
-    loss="categorical_crossentropy",
-    metrics=["accuracy"],
+model = load_model(
+    "Fine Tunning Models/Models And History/DenseNet121/DenseNet121_classifier.keras"
 )
 
 # ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

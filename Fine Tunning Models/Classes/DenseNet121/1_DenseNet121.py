@@ -263,7 +263,7 @@ history = model.fit(
     train_images,
     train_labels,
     validation_data=(valid_images, valid_labels),
-    epochs=2,
+    epochs=30,
     batch_size=64,
     callbacks=callbacks,
 )
