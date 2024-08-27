@@ -1,0 +1,1 @@
+# GitHUb için dummy class
