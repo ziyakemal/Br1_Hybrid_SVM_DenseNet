@@ -1,18 +1,14 @@
-#
 # * 1-) --------------------------------------------------------------------------------------------------------
 # Kütüphanelerimizi aşağıdaki gibi import edelim.
 # Data Manipulation
 
-from keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 import numpy as np
 import pandas as pd
 
 # Data preprocessing
-# from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer
-
-# from PIL import Image, ImageEnhance
 from sklearn.utils import shuffle
 
 # For Data Visualization
@@ -20,29 +16,19 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Data Evaluation
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix, classification_report
 
 # For ML Models
-from keras.applications import Xception, ResNet50, MobileNet, VGG16
+from keras.applications import DenseNet121
 import tensorflow as tf
 from tensorflow import keras
-from keras.layers import *
-from keras.losses import *
-from keras.models import *
-from keras.metrics import *
-from keras.optimizers import *
+from keras.layers import GlobalAveragePooling2D, Dense, Dropout
+from keras.models import Model
 from keras.optimizers import Adam
-from keras.applications import *
-from keras.preprocessing.image import *
-from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.utils import to_categorical
-
 
 # Miscellaneous
 import cv2
-
-# from tqdm import tqdm
 import os
 import random
 import pickle
@@ -82,7 +68,6 @@ def create_dataframe(data_path):
 # & ____________________________________ DataFramelerin Elde Edilmesi __________________________________________
 # * 3-) --------------------------------------------------------------------------------------------------------
 
-
 train_data = "dataSet_Final/Train"
 test_data = "dataSet_Final/Test"
 valid_data = "dataSet_Final/Validation"
@@ -104,11 +89,11 @@ def print_dataset_statistics(df, name):
 
 
 print_dataset_statistics(train_df, "Eğitim")
-print_dataset_statistics(valid_df, "Eğitim")
-print_dataset_statistics(valid_df, "Eğitim")
+print_dataset_statistics(valid_df, "Validasyon")
+print_dataset_statistics(test_df, "Test")
 
 # * 5-) --------------------------------------------------------------------------------------------------------
-# Dataset istatistiklerinin txt doyyası olarak kayıt edilmesi.
+# Dataset istatistiklerinin txt dosyası olarak kayıt edilmesi.
 
 
 def save_statistics_to_file(df, name, save_path):
@@ -172,7 +157,6 @@ def load_images_from_dataframe(df, target_size=(224, 224)):
 # & _______________________________________ Verilerin yüklenmesi _______________________________________________
 # * 7-) --------------------------------------------------------------------------------------------------------
 
-
 # Verilerin yüklenmesi
 train_images, train_labels = load_images_from_dataframe(train_df)
 test_images, test_labels = load_images_from_dataframe(test_df)
@@ -196,6 +180,7 @@ num_classes = len(label_mapping)
 
 # & _________________________________________ Model Development ________________________________________________
 # * 9-) --------------------------------------------------------------------------------------------------------
+
 
 # DenseNet Modelinin Oluşturulması
 def create_densenet121_model(input_shape, num_classes):
@@ -225,7 +210,6 @@ def create_densenet121_model(input_shape, num_classes):
 image_shape = (224, 224, 3)  # DenseNet121 için gerekli boyut
 model = create_densenet121_model(image_shape, num_classes)
 
-
 # ^ 9.5. Modelin derlenmesi
 model.compile(
     optimizer=Adam(learning_rate=0.0001),
@@ -233,10 +217,8 @@ model.compile(
     metrics=["accuracy"],
 )
 
-
 # & ______________________________________ Model Özetini Kaydetme ______________________________________________
 # * 10-) --------------------------------------------------------------------------------------------------------
-
 
 summary_file_path = os.path.join(
     output_directory, "DenseNet121_SVM_HybridModel_summary.txt"
@@ -246,28 +228,60 @@ with open(summary_file_path, "w") as f:
         model.summary()
 print(f"Model summary saved to --> {summary_file_path}")
 
-
 # & _________________________________ MODELİ EĞİTME & CALLBACK _________________________________________
 # * 11-) ------------------------------------------------------------------------------------------------
 
-ckp_interval = 5 * int(np.ceil(train_df.shape[0] / 64))
-ckp_path = os.path.join(
-    output_directory, r"epocch_{epoch:02d}_val_acc_{val_accuracy:.2f}.hdf5"
-)
 
-checkpoint = keras.callbacks.ModelCheckpoint(
-    filepath=ckp_path,
-    save_weights_only=True,
-    monitor="val_loss",
-    verbose=1,
-    save_best_only=True,
-)
+def create_callbacks(
+    output_directory,
+    train_df_shape,
+    checkpoint_name="epoch_{epoch:02d}_val_acc_{val_accuracy:.2f}.hdf5",
+    patience=5,
+    min_lr=1e-6,
+):
+    """
+    Model eğitiminde kullanılacak callback'leri oluşturur ve checkpoint dosya adını özelleştirir.
 
-callbacks = [
-    EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True),
-    ReduceLROnPlateau(monitor="val_loss", factor=0.2, patience=5, min_lr=1e-6),
-    checkpoint,
-]
+    Parameters:
+    - output_directory (str): Checkpoint dosyalarının kaydedileceği dizin.
+    - train_df_shape (int): Eğitim veri kümesinin boyutu.
+    - checkpoint_name (str): Checkpoint dosyası için kullanılacak isim şablonu.
+    - patience (int): EarlyStopping için sabır süresi.
+    - min_lr (float): ReduceLROnPlateau için minimum öğrenme oranı.
+
+    Returns:
+    - callbacks (list): Model eğitiminde kullanılacak callback'ler listesi.
+    """
+
+    ckp_interval = 5 * int(np.ceil(train_df_shape / 64))
+    ckp_path = os.path.join(output_directory, checkpoint_name)
+
+    checkpoint = ModelCheckpoint(
+        filepath=ckp_path,
+        save_weights_only=True,
+        monitor="val_loss",
+        verbose=1,
+        save_best_only=True,
+    )
+
+    callbacks = [
+        EarlyStopping(monitor="val_loss", patience=patience, restore_best_weights=True),
+        ReduceLROnPlateau(
+            monitor="val_loss", factor=0.2, patience=patience, min_lr=min_lr
+        ),
+        checkpoint,
+    ]
+
+    return callbacks
+
+
+# ~ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+callbacks = create_callbacks(
+    output_directory,
+    train_df.shape[0],
+    checkpoint_name="Before_FineTunning_checkpoint_epoch_{epoch:02d}_accuracy_{val_accuracy:.2f}.hdf5"
+)
 
 # ^ 9.6. Fine-Tuning Öncesi Eğitim (Son Katmanların Eğitimi)
 
@@ -305,6 +319,12 @@ model.compile(
 )
 
 # ^ 9.9. Fine-Tuning Eğitimi
+callbacks = create_callbacks(
+    output_directory,
+    train_df.shape[0],
+    checkpoint_name="After_FineTunning_checkpoint_epoch_{epoch:02d}_accuracy_{val_accuracy:.2f}.hdf5"
+)
+
 history = model.fit(
     train_images,
     train_labels,
@@ -334,3 +354,38 @@ print(f"Model saved to --> {model_save_path}")
 # Modelin test edilmesi
 test_loss, test_acc = model.evaluate(test_images, test_labels)
 print(f"Test Accuracy: {test_acc}")
+
+# & ___________________________ NumPy Dizilerinin Betimsel İstatistiklerinin Kayıt Edilmesi _________________________________
+# * 14-) --------------------------------------------------------------------------------------------------------
+
+
+def save_numpy_statistics(images, labels, save_path, dataset_name):
+    # Dosya yolunu oluşturmak için klasör yolunu al
+    folder_path = os.path.dirname(save_path)
+
+    # Klasör yoksa oluştur
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    # Dosyayı oluştur ve betimsel istatistikleri yaz
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(f"{dataset_name} Dataset Betimsel İstatistikler:\n")
+        f.write(f"Images shape: {images.shape}\n")
+        f.write(f"Labels shape: {labels.shape}\n")
+        f.write(f"Unique Labels: {np.unique(np.argmax(labels, axis=1))}\n")
+        f.write(f"Labels distribution:\n{np.sum(labels, axis=0)}\n")
+
+
+# & ___________________________ Tüm Datasetlerin Betimsel İstatistiklerini Kaydet ___________________________________________
+
+# Train seti için
+train_images_stats_path = "Hybrid Models with Fine Tunnigs/DenseNet121/Figure And Tables/train_images_statistics.txt"
+save_numpy_statistics(train_images, train_labels, train_images_stats_path, "Train")
+
+# Validation seti için
+valid_images_stats_path = "Hybrid Models with Fine Tunnigs/DenseNet121/Figure And Tables/valid_images_statistics.txt"
+save_numpy_statistics(valid_images, valid_labels, valid_images_stats_path, "Validation")
+
+# Test seti için
+test_images_stats_path = "Hybrid Models with Fine Tunnigs/DenseNet121/Figure And Tables/test_images_statistics.txt"
+save_numpy_statistics(test_images, test_labels, test_images_stats_path, "Test")
